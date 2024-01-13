@@ -5,7 +5,9 @@ module.exports = {
     'chalk',
     'del',
     'comlink',
-    // 'vue',
+    'vue',
+    'image-size',
+    'message2call',
     '@types/ws',
     // 'eslint-config-standard-with-typescript',
     // 'typescript', // https://github.com/microsoft/TypeScript/pull/54567
@@ -15,7 +17,6 @@ module.exports = {
   // filter: [
   //   'electron-builder',
   //   'electron-updater',
-  //   'electron-log',
   // ],
 
   // target: 'patch',
