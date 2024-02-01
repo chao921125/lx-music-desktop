@@ -4,6 +4,8 @@ import fs from 'fs'
 import path from 'node:path'
 import { openDevTools as handleOpenDevTools } from '@main/utils'
 import { encodePath } from '@common/utils/electron'
+import USER_API_RENDERER_EVENT_NAME from './rendererEvent/name'
+import { getScript } from './utils'
 
 let browserWindow: Electron.BrowserWindow | null = null
 
@@ -87,12 +89,12 @@ export const createWindow = async(userApi: LX.UserApi.UserApiInfo) => {
   winEvent()
 
   // console.log(html.replace('</body>', `<script>${userApi.script}</script></body>`))
-  const randomNum = Math.random().toString().substring(2, 10)
-  await browserWindow.loadURL(
-    'data:text/html;charset=UTF-8,' + encodeURIComponent(html
-      .replace('<meta http-equiv="Content-Security-Policy" content="default-src \'none\'">',
-        `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${randomNum}';">`)
-      .replace('</body>', `<script nonce="${randomNum}">${userApi.script}</script></body>`)))
+  // const randomNum = Math.random().toString().substring(2, 10)
+  await browserWindow.loadURL('data:text/html;charset=UTF-8,' + encodeURIComponent(html))
+
+  browserWindow.on('ready-to-show', async() => {
+    sendEvent(USER_API_RENDERER_EVENT_NAME.initEnv, { ...userApi, script: await getScript(userApi.id) })
+  })
 
   // global.modules.userApiWindow.loadFile(join(dir, 'renderer/user-api.html'))
   // global.modules.userApiWindow.webContents.openDevTools()
@@ -105,7 +107,7 @@ export const closeWindow = async() => {
     browserWindow.webContents.session.clearStorageData(),
     browserWindow.webContents.session.clearCache(),
   ])
-  browserWindow.destroy()
+  browserWindow?.destroy()
   browserWindow = null
 }
 

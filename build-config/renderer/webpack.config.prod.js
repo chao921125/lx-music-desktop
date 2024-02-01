@@ -15,7 +15,7 @@ const buildConfig = require('../webpack-build-config')
 
 module.exports = merge(baseConfig, {
   mode: 'production',
-  devtool: false,
+  devtool: 'source-map',
   externals: [
     // ...Object.keys(dependencies || {}).filter(d => !whiteListedModules.includes(d)),
   ],
@@ -44,6 +44,7 @@ module.exports = merge(baseConfig, {
       // ENVIRONMENT: 'process.env',
       __VUE_OPTIONS_API__: 'true',
       __VUE_PROD_DEVTOOLS__: 'false',
+      __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: 'false',
     }),
   ],
   optimization: {
