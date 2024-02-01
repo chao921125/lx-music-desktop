@@ -1,12 +1,23 @@
-import { onBeforeUnmount } from '@common/utils/vueTools'
+import { onBeforeUnmount, watch } from '@common/utils/vueTools'
 import { useI18n } from '@renderer/plugins/i18n'
-import { onUserApiStatus, getUserApiList, sendUserApiRequest, userApiRequestCancel, onShowUserApiUpdateAlert } from '@renderer/utils/ipc'
+import { onUserApiStatus, getUserApiList, sendUserApiRequest as sendUserApiRequestRemote, userApiRequestCancel, onShowUserApiUpdateAlert } from '@renderer/utils/ipc'
 import { openUrl } from '@common/utils/electron'
 import { qualityList, userApi } from '@renderer/store'
 import { appSetting } from '@renderer/store/setting'
 import { dialog } from '@renderer/plugins/Dialog'
 import { setUserApi } from '@renderer/core/apiSource'
 
+const sendUserApiRequest: typeof sendUserApiRequestRemote = async(data) => {
+  let stop: () => void
+  return new Promise<void>((resolve, reject) => {
+    stop = watch(() => appSetting['common.apiSource'], () => {
+      reject(new Error('source changed'))
+    })
+    void sendUserApiRequestRemote(data).then(resolve).catch(reject)
+  }).finally(() => {
+    stop()
+  })
+}
 
 export default () => {
   const t = useI18n()
@@ -46,7 +57,6 @@ export default () => {
                       // eslint-disable-next-line @typescript-eslint/promise-function-async
                     }).then(res => {
                       // console.log(res)
-                      if (!/^https?:/.test(res.data.url)) return Promise.reject(new Error('Get url failed'))
                       return { type, url: res.data.url }
                     }).catch(async err => {
                       console.log(err.message)
@@ -55,7 +65,62 @@ export default () => {
                   }
                 }
                 break
-
+              case 'lyric':
+                apis[source].getLyric = (songInfo: LX.Music.MusicInfo) => {
+                  const requestKey = `request__${Math.random().toString().substring(2)}`
+                  return {
+                    canceleFn() {
+                      userApiRequestCancel(requestKey)
+                    },
+                    promise: sendUserApiRequest({
+                      requestKey,
+                      data: {
+                        source,
+                        action: 'lyric',
+                        info: {
+                          type,
+                          musicInfo: songInfo,
+                        },
+                      },
+                      // eslint-disable-next-line @typescript-eslint/promise-function-async
+                    }).then(res => {
+                      // console.log(res)
+                      return res.data
+                    }).catch(async err => {
+                      console.log(err.message)
+                      return Promise.reject(err)
+                    }),
+                  }
+                }
+                break
+              case 'pic':
+                apis[source].getPic = (songInfo: LX.Music.MusicInfo) => {
+                  const requestKey = `request__${Math.random().toString().substring(2)}`
+                  return {
+                    canceleFn() {
+                      userApiRequestCancel(requestKey)
+                    },
+                    promise: sendUserApiRequest({
+                      requestKey,
+                      data: {
+                        source,
+                        action: 'pic',
+                        info: {
+                          type,
+                          musicInfo: songInfo,
+                        },
+                      },
+                      // eslint-disable-next-line @typescript-eslint/promise-function-async
+                    }).then(res => {
+                      // console.log(res)
+                      return res.data
+                    }).catch(async err => {
+                      console.log(err.message)
+                      return Promise.reject(err)
+                    }),
+                  }
+                }
+                break
               default:
                 break
             }
@@ -74,6 +139,7 @@ export default () => {
         })
       }
     }
+    if (!window.lx.apiInitPromise[1]) window.lx.apiInitPromise[2](status)
   })
 
   const rUserApiShowUpdateAlert = onShowUserApiUpdateAlert(({ params: { name, log, updateUrl } }) => {
