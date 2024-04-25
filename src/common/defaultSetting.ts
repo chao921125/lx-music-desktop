@@ -36,7 +36,7 @@ const defaultSetting: LX.AppSetting = {
   'player.isShowLyricTranslation': false,
   'player.isShowLyricRoma': false,
   'player.isS2t': false,
-  'player.isPlayLxlrc': isWin,
+  'player.isPlayLxlrc': !isMac,
   'player.isSavePlayTime': false,
   'player.audioVisualization': false,
   'player.waitPlayEndStop': true,
@@ -63,7 +63,7 @@ const defaultSetting: LX.AppSetting = {
 
   'playDetail.isZoomActiveLrc': false,
   'playDetail.isShowLyricProgressSetting': false,
-  'playDetail.style.fontSize': 100,
+  'playDetail.style.fontSize': 140,
   'playDetail.style.align': 'center',
 
   'desktopLyric.enable': false,
@@ -125,8 +125,6 @@ const defaultSetting: LX.AppSetting = {
   'network.proxy.enable': false,
   'network.proxy.host': '',
   'network.proxy.port': '',
-  'network.proxy.username': '',
-  'network.proxy.password': '',
 
   'tray.enable': false,
   // 'tray.isToTray': false,
@@ -137,6 +135,10 @@ const defaultSetting: LX.AppSetting = {
   'sync.server.port': '23332',
   'sync.server.maxSsnapshotNum': 5,
   'sync.client.host': '',
+
+  'openAPI.enable': false,
+  'openAPI.port': '23330',
+  'openAPI.bindLan': false,
 
   // 'theme.id': 'blue_plus',
   'theme.id': 'green',

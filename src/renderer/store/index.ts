@@ -11,8 +11,6 @@ export const proxy: {
   enable: boolean
   host: string
   port: string
-  username: string
-  password: string
 
   envProxy?: {
     host: string
@@ -22,8 +20,6 @@ export const proxy: {
   enable: false,
   host: '',
   port: '',
-  username: '',
-  password: '',
 }
 export const sync: {
   enable: boolean
@@ -75,6 +71,11 @@ export const sync: {
       address: [],
     },
   },
+})
+
+export const openAPI = reactive({
+  address: '',
+  message: '',
 })
 
 
