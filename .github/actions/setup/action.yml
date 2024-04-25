@@ -7,7 +7,7 @@ runs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '16'
+        node-version: '18.20.1'
 
     - name: Cache node modules
       id: cache-npm
@@ -15,8 +15,6 @@ runs:
       with:
         path: |
           ${{ env.NPM_CACHE }}
-          ${{ env.ELECTRON_CACHE }}
-          ${{ env.ELECTRON_BUILDERCACHE }}
         key: ${{ runner.os }}-node-modules-cache-${{ hashFiles('package-lock.json') }}
         restore-keys: |
           ${{ runner.os }}-node-modules-cache-

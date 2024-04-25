@@ -276,6 +276,7 @@ export const getTheme = () => {
       id: global.lx.appSetting['theme.id'],
       name: theme.name,
       isDark: theme.isDark,
+      isDarkFont: theme.isDarkFont,
       colors,
     },
   }
@@ -289,6 +290,7 @@ export const setPowerSaveBlocker = (enabled: boolean) => {
     powerSaveBlockerId = powerSaveBlocker.start('prevent-app-suspension')
   } else {
     if (!isEnabled) return
-    if (powerSaveBlocker.stop(powerSaveBlockerId!)) powerSaveBlockerId = null
+    powerSaveBlocker.stop(powerSaveBlockerId!)
+    powerSaveBlockerId = null
   }
 }

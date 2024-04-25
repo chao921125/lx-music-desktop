@@ -5,6 +5,9 @@ on:
     branches:
       - beta
 
+env:
+  IS_CI: 'true'
+
 jobs:
   # CheckCode:
   #   name: Lint Code
@@ -16,7 +19,7 @@ jobs:
   #     - name: Install Node.js
   #       uses: actions/setup-node@v4
   #       with:
-  #         node-version: '16'
+  #         node-version: 20
 
   #     - name: Cache file
   #       uses: actions/cache@v4
@@ -42,8 +45,6 @@ jobs:
     runs-on: windows-latest
     env:
       NPM_CACHE: '%APPDATA%\npm-cache'
-      ELECTRON_CACHE: '%LOCALAPPDATA%\electron\Cache'
-      ELECTRON_BUILDERCACHE: '%LOCALAPPDATA%\electron-builder\Cache'
     # needs: CheckCode
     steps:
       - name: Check out git repository
@@ -53,7 +54,9 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Build src code
-        run: npm run build
+        run: |
+          git status --porcelain
+          npm run build
 
       - name: Build Package Setup x64
         run: npm run pack:win:setup:x64
@@ -129,8 +132,6 @@ jobs:
     # needs: CheckCode
     env:
       NPM_CACHE: $HOME/.npm
-      ELECTRON_CACHE: $HOME/.cache/electron
-      ELECTRON_BUILDERCACHE: $HOME/.cache/electron-builder
     steps:
       - name: Check out git repository
         uses: actions/checkout@v4
@@ -142,7 +143,9 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Build src code
-        run: npm run build
+        run: |
+          git status --porcelain
+          npm run build
 
       - name: Build Package dmg
         run: |
@@ -172,8 +175,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NPM_CACHE: $HOME/.npm
-      ELECTRON_CACHE: $HOME/.cache/electron
-      ELECTRON_BUILDERCACHE: $HOME/.cache/electron-builder
     # needs: CheckCode
     steps:
       - name: Install package
@@ -186,7 +187,9 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Build src code
-        run: npm run build
+        run: |
+          git status --porcelain
+          npm run build
 
       - name: Build Package deb amd64
         run: npm run pack:linux:deb:amd64

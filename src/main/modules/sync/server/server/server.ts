@@ -2,7 +2,6 @@ import http, { type IncomingMessage } from 'node:http'
 import { WebSocketServer } from 'ws'
 import { registerLocalSyncEvent, callObj, sync, unregisterLocalSyncEvent } from './sync'
 import { authCode, authConnect } from './auth'
-import { getAddress } from '../../utils'
 import { SYNC_CLOSE_CODE, SYNC_CODE } from '@common/constants_sync'
 import { getUserSpace, releaseUserSpace, getServerId, initServerInfo } from '../user'
 import { createMsg2call } from 'message2call'
@@ -10,6 +9,8 @@ import log from '../../log'
 import { sendServerStatus } from '@main/modules/winMain'
 import { decryptMsg, encryptMsg, generateCode as handleGenerateCode } from '../utils/tools'
 import migrateData from '../../migrate'
+import type { Socket } from 'node:net'
+import { getAddress } from '@common/utils/nodejs'
 
 
 let status: LX.Sync.ServerStatus = {
@@ -114,6 +115,7 @@ const authConnection = (req: http.IncomingMessage, callback: (err: string | null
 
 let wss: LX.Sync.Server.SocketServer | null
 let httpServer: http.Server
+let sockets = new Set<Socket>()
 
 function noop() {}
 function onSocketError(err: Error) {
@@ -290,6 +292,12 @@ const handleStartServer = async(port = 9527, ip = '0.0.0.0') => await new Promis
     console.log(error)
     reject(error)
   })
+  httpServer.on('connection', (socket) => {
+    sockets.add(socket)
+    socket.once('close', () => {
+      sockets.delete(socket)
+    })
+  })
 
   httpServer.on('listening', () => {
     const addr = httpServer.address()
@@ -321,6 +329,8 @@ const handleStopServer = async() => new Promise<void>((resolve, reject) => {
     }
     resolve()
   })
+  for (const socket of sockets) socket.destroy()
+  sockets.clear()
 })
 
 export const stopServer = async() => {

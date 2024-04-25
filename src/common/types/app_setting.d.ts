@@ -1,4 +1,4 @@
-import type { I18n } from '@root/lang/i18n'
+import type { I18n } from '../../lang/i18n'
 
 declare global {
 
@@ -89,9 +89,9 @@ declare global {
       'player.togglePlayMethod': 'listLoop' | 'random' | 'list' | 'singleLoop' | 'none'
 
       /**
-       * 是否优先播放320k音质
+       * 优先播放的音质
        */
-      'player.highQuality': boolean
+      'player.playQuality': LX.Quality
 
       /**
        * 是否显示任务栏进度条
@@ -580,16 +580,6 @@ declare global {
       'network.proxy.port': string
 
       /**
-       * 代理服务器用户名
-       */
-      'network.proxy.username': string
-
-      /**
-       * 代理服务器密码
-       */
-      'network.proxy.password': string
-
-      /**
        * 是否启用托盘
        */
       'tray.enable': boolean
@@ -628,6 +618,22 @@ declare global {
        * 同步服务地址
        */
       'sync.client.host': string
+
+
+      /**
+       * 是否启用开放API服务
+       */
+      'openAPI.enable': boolean
+
+      /**
+       * API服务端口号
+       */
+      'openAPI.port': '23330' | string
+
+      /**
+       * 是否绑定到局域网
+       */
+      'openAPI.bindLan': boolean
 
       /**
        * 是否在离开搜索界面时自动清空搜索框

@@ -234,6 +234,20 @@ export const initAppSetting = async() => {
           colors: {},
         },
       },
+      player_status: {
+        status: 'stoped',
+        name: '',
+        singer: '',
+        albumName: '',
+        picUrl: '',
+        progress: 0,
+        duration: 0,
+        playbackRate: 1,
+        lyricLineText: '',
+        lyricLineAllText: '',
+        lyric: '',
+        collect: false,
+      },
     }
   }
 
