@@ -122,15 +122,15 @@ export default {
   }
 }
 .main {
-  min-height: 200px;
-  min-width: 460px;
+  min-height: 175px;
+  min-width: 380px;
   // display: flex;
   // flex-flow: column nowrap;
 }
 
 .list {
-  min-height: 200px;
-  min-width: 460px;
+  min-height: 175px;
+  min-width: 380px;
   // background-color: @color-search-form-background;
   font-size: 13px;
   transition-property: height;
@@ -176,12 +176,12 @@ export default {
 }
 .text {
   max-width: 100%;
-  .mixin-ellipsis-1;
+  .mixin-ellipsis-1();
 }
 .albumName {
   font-size: 12px;
   opacity: 0.6;
-  // .mixin-ellipsis-1;
+  // .mixin-ellipsis-1();
 }
 .label {
   flex: none;

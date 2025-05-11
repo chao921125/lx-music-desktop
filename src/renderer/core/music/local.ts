@@ -66,9 +66,10 @@ const getOtherSourceByLocal = async<T>(musicInfo: LX.Music.MusicInfoLocal, handl
   throw new Error('source not found')
 }
 
-export const getMusicUrl = async({ musicInfo, isRefresh, onToggleSource = () => {} }: {
+export const getMusicUrl = async({ musicInfo, isRefresh, allowToggleSource = true, onToggleSource = () => {} }: {
   musicInfo: LX.Music.MusicInfoLocal
   isRefresh: boolean
+  allowToggleSource?: boolean
   onToggleSource?: (musicInfo?: LX.Music.MusicInfoOnline) => void
 }): Promise<string> => {
   if (!isRefresh) {
@@ -82,6 +83,8 @@ export const getMusicUrl = async({ musicInfo, isRefresh, onToggleSource = () => 
       return url
     })
   } catch {}
+
+  if (!allowToggleSource) throw new Error('failed')
 
   onToggleSource()
   return getOtherSourceByLocal(musicInfo, async(otherSource) => {
@@ -134,7 +137,8 @@ export const getLyricInfo = async({ musicInfo, isRefresh, onToggleSource = () =>
 }): Promise<LX.Player.LyricInfo> => {
   if (!isRefresh) {
     const [lyricInfo, fileLyricInfo] = await Promise.all([getCachedLyricInfo(musicInfo), window.lx.worker.main.getMusicFileLyric(musicInfo.meta.filePath)])
-    if (lyricInfo?.lyric && lyricInfo.lyric != lyricInfo.rawlrcInfo.lyric) {
+    // console.log(lyricInfo, fileLyricInfo)
+    if (lyricInfo?.lyric && lyricInfo.lyric != fileLyricInfo?.lyric) {
       // 存在已编辑歌词
       return buildLyricInfo({ ...lyricInfo, rawlrcInfo: fileLyricInfo ?? lyricInfo.rawlrcInfo })
     }

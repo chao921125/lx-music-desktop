@@ -1,6 +1,12 @@
 <template lang="pug">
 dt#other {{ $t('setting__other') }}
 dd
+  div
+    .gap-top
+      base-checkbox(id="setting_transparent_window" :model-value="appSetting['common.transparentWindow']" :label="$t('setting__other_transparent_window')" @update:model-value="updateSetting({'common.transparentWindow': $event})")
+      svg-icon(class="help-icon" name="help-circle-outline" :aria-label="$t('setting__other_transparent_window_tip')")
+
+dd
   h3#other_tray_theme {{ $t('setting__other_tray_theme') }}
   div
     base-checkbox.gap-left(
@@ -77,6 +83,7 @@ import { appSetting, updateSetting } from '@renderer/store/setting'
 import { overwriteListFull } from '@renderer/store/list/listManage'
 import { dislikeRuleCount } from '@renderer/store/dislikeList'
 import DislikeListModal from './DislikeListModal.vue'
+import { TRAY_AUTO_ID } from '@common/constants'
 
 export default {
   name: 'SettingOther',
@@ -91,6 +98,7 @@ export default {
         { id: 0, name: 'native', label: t('setting__other_tray_theme_native') },
         { id: 2, name: 'black', label: t('setting__other_tray_theme_black') },
         { id: 1, name: 'origin', label: t('setting__other_tray_theme_origin') },
+        { id: TRAY_AUTO_ID, name: 'auto', label: t('setting__other_tray_theme_auto') },
       ]
     })
 

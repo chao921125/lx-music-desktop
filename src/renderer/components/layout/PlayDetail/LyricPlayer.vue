@@ -5,7 +5,7 @@
         v-show="!isShowLrcSelectContent"
         ref="dom_lyric"
         :class="['lyric', $style.lyric, { [$style.draging]: isMsDown }, { [$style.lrcActiveZoom]: isZoomActiveLrc }]" :style="lrcStyles"
-        @wheel="handleWheel" @mousedown="handleLyricMouseDown"
+        @wheel="handleWheel" @mousedown="handleLyricMouseDown" @touchstart="handleLyricTouchStart"
         @contextmenu.stop="handleShowLyricMenu"
       >
         <div :class="['pre', $style.lyricSpace]" />
@@ -77,6 +77,7 @@ export default {
       isStopScroll,
       timeStr,
       handleLyricMouseDown,
+      handleLyricTouchStart,
       handleWheel,
       handleSkipPlay,
       handleSkipMouseEnter,
@@ -161,6 +162,7 @@ export default {
       isMsDown,
       timeStr,
       handleLyricMouseDown,
+      handleLyricTouchStart,
       handleWheel,
       handleSkipPlay,
       handleSkipMouseEnter,
@@ -300,7 +302,7 @@ export default {
     position: absolute;
     right: 30px;
     top: -14px;
-    line-height: 1;
+    line-height: 1.2;
     font-size: 12px;
     color: var(--color-primary-dark-100);
     opacity: .7;
@@ -333,12 +335,12 @@ export default {
   // text-align: center;
   height: 100%;
   width: 100%;
-  font-size: 16px;
+  font-size: var(--playDetail-lrc-font-size, 16px);
   z-index: 10;
   color: var(--color-400);
 
   .lyricSelectline {
-    padding: 8px 0;
+    padding: calc(var(--playDetail-lrc-font-size, 16px) / 2) 1px;
     overflow-wrap: break-word;
     transition: @transition-normal !important;
     transition-property: color, font-size;

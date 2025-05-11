@@ -27,7 +27,8 @@
 
 <script setup>
 // import { reactive } from '@common/utils/vueTools'
-import { appSetting, updateSetting } from '@renderer/store/setting'
+import { setMediaDeviceId } from '@renderer/plugins/player'
+import { appSetting, saveMediaDeviceId, updateSetting } from '@renderer/store/setting'
 
 // const setting = reactive({
 //   enabled: false,
@@ -35,8 +36,12 @@ import { appSetting, updateSetting } from '@renderer/store/setting'
 //   speed: 25,
 // })
 
-const updateEnabled = (enabled) => {
+const updateEnabled = async(enabled) => {
   // console.log(enabled)
+  if (appSetting['player.mediaDeviceId'] != 'default') {
+    await setMediaDeviceId('default').catch(_ => _)
+    saveMediaDeviceId('default')
+  }
   updateSetting({ 'player.soundEffect.panner.enable': enabled })
 }
 
@@ -59,7 +64,7 @@ const handleUpdateSpeed = (value) => {
   flex-flow: column nowrap;
   gap: 8px;
   &:before {
-    .mixin-after;
+    .mixin-after();
     position: absolute;
     top: 0;
     height: 1px;
@@ -110,7 +115,7 @@ const handleUpdateSpeed = (value) => {
   align-items: center;
   // font-size: 13px;
   span {
-    line-height: 1;
+    line-height: 1.2;
   }
 }
 

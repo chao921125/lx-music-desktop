@@ -15,6 +15,8 @@ import { qualityList } from '..'
 import { proxyCallback } from '@renderer/worker/utils'
 import { arrPush, arrUnshift, joinPath } from '@renderer/utils'
 import { DOWNLOAD_STATUS } from '@common/constants'
+import { proxy } from '../index'
+import { buildSavePath } from './utils'
 
 const waitingUpdateTasks = new Map<string, LX.Download.ListItem>()
 let timer: NodeJS.Timeout | null = null
@@ -100,10 +102,10 @@ const setStatus = (downloadInfo: LX.Download.ListItem, status: LX.Download.Downl
   if (statusText == null) {
     switch (status) {
       case DOWNLOAD_STATUS.RUN:
-        statusText = window.i18n.t('download___status_runing')
+        statusText = window.i18n.t('download___status_running')
         break
       case DOWNLOAD_STATUS.WAITING:
-        statusText = window.i18n.t('download___status_wating')
+        statusText = window.i18n.t('download___status_waiting')
         break
       case DOWNLOAD_STATUS.PAUSE:
         statusText = window.i18n.t('download___status_paused')
@@ -112,7 +114,7 @@ const setStatus = (downloadInfo: LX.Download.ListItem, status: LX.Download.Downl
         statusText = window.i18n.t('download___status_error')
         break
       case DOWNLOAD_STATUS.COMPLETED:
-        statusText = window.i18n.t('download___status_complated')
+        statusText = window.i18n.t('download___status_completed')
         break
       default:
         statusText = ''
@@ -131,6 +133,15 @@ const setStatus = (downloadInfo: LX.Download.ListItem, status: LX.Download.Downl
 // 修复 1.1.x版本 酷狗源歌词格式
 const fixKgLyric = (lrc: string) => /\[00:\d\d:\d\d.\d+\]/.test(lrc) ? lrc.replace(/(?:\[00:(\d\d:\d\d.\d+\]))/gm, '[$1') : lrc
 
+const getProxy = () => {
+  return proxy.enable && proxy.host ? {
+    host: proxy.host,
+    port: parseInt(proxy.port || '80'),
+  } : proxy.envProxy ? {
+    host: proxy.envProxy.host,
+    port: parseInt(proxy.envProxy.port || '80'),
+  } : undefined
+}
 /**
  * 设置歌曲meta信息
  * @param downloadInfo 下载任务信息
@@ -167,10 +178,10 @@ const saveMeta = (downloadInfo: LX.Download.ListItem) => {
     }
     void window.lx.worker.download.writeMeta(downloadInfo.metadata.filePath, {
       title: downloadInfo.metadata.musicInfo.name,
-      artist: downloadInfo.metadata.musicInfo.singer,
+      artist: downloadInfo.metadata.musicInfo.singer?.replaceAll('、', ';'),
       album: downloadInfo.metadata.musicInfo.meta.albumName,
       APIC: imgUrl,
-    }, lrcData)
+    }, lrcData, getProxy())
   })
 }
 
@@ -192,30 +203,48 @@ const downloadLyric = (downloadInfo: LX.Download.ListItem) => {
         tlrc: appSetting['download.isDownloadTLrc'] && lrcs.tlyric ? lrcs.tlyric : null,
         rlrc: appSetting['download.isDownloadRLrc'] && lrcs.rlyric ? lrcs.rlyric : null,
       }
-      void window.lx.worker.download.saveLrc(lrcData, downloadInfo.metadata.filePath.replace(/(mp3|flac|ape|wav)$/, 'lrc'),
+      void window.lx.worker.download.saveLrc(lrcData,
+        downloadInfo.metadata.filePath.substring(0, downloadInfo.metadata.filePath.lastIndexOf('.')) + '.lrc',
         appSetting['download.lrcFormat'])
     }
   })
 }
 
 const getUrl = async(downloadInfo: LX.Download.ListItem, isRefresh: boolean = false) => {
-  return getMusicUrl({
-    musicInfo: downloadInfo.metadata.musicInfo,
-    isRefresh: false,
+  let toggleMusicInfo = downloadInfo.metadata.musicInfo.meta.toggleMusicInfo
+  return (toggleMusicInfo ? getMusicUrl({
+    musicInfo: toggleMusicInfo,
+    isRefresh,
     quality: downloadInfo.metadata.quality,
-    allowToggleSource: appSetting['download.isUseOtherSource'],
+    allowToggleSource: false,
+  }) : Promise.reject(new Error('not found'))).catch(() => {
+    return getMusicUrl({
+      musicInfo: downloadInfo.metadata.musicInfo,
+      isRefresh: false,
+      quality: downloadInfo.metadata.quality,
+      allowToggleSource: appSetting['download.isUseOtherSource'],
+    })
   }).catch(() => '')
 }
 const handleRefreshUrl = (downloadInfo: LX.Download.ListItem) => {
   setStatusText(downloadInfo, window.i18n.t('download_status_error_refresh_url'))
-  getMusicUrl({
-    musicInfo: downloadInfo.metadata.musicInfo,
+  let toggleMusicInfo = downloadInfo.metadata.musicInfo.meta.toggleMusicInfo
+  ;(toggleMusicInfo ? getMusicUrl({
+    musicInfo: toggleMusicInfo,
     isRefresh: true,
     quality: downloadInfo.metadata.quality,
-    allowToggleSource: appSetting['download.isUseOtherSource'],
+    allowToggleSource: false,
+  }) : Promise.reject(new Error('not found'))).catch(() => {
+    return getMusicUrl({
+      musicInfo: downloadInfo.metadata.musicInfo,
+      isRefresh: true,
+      quality: downloadInfo.metadata.quality,
+      allowToggleSource: appSetting['download.isUseOtherSource'],
+    })
   })
+    .catch(() => '')
     .then(url => {
-      // commit('setStatusText', { downloadInfo, text: '链接刷新成功' })
+    // commit('setStatusText', { downloadInfo, text: '链接刷新成功' })
       setUrl(downloadInfo, url)
       void window.lx.worker.download.updateUrl(downloadInfo.id, url)
     })
@@ -233,7 +262,7 @@ const handleError = (downloadInfo: LX.Download.ListItem, message?: string) => {
 
 const handleStartTask = async(downloadInfo: LX.Download.ListItem) => {
   if (!downloadInfo.metadata.url) {
-    setStatusText(downloadInfo, window.i18n.t('download_status_url_geting'))
+    setStatusText(downloadInfo, window.i18n.t('download_status_url_getting'))
     const url = await getUrl(downloadInfo)
     if (!url) {
       handleError(downloadInfo, window.i18n.t('download_status_error_url_failed'))
@@ -243,12 +272,13 @@ const handleStartTask = async(downloadInfo: LX.Download.ListItem) => {
     if (downloadInfo.status != DOWNLOAD_STATUS.RUN) return
   }
 
-  const filePath = joinPath(appSetting['download.savePath'], downloadInfo.metadata.fileName)
+  const savePath = buildSavePath(downloadInfo)
+  const filePath = joinPath(savePath, downloadInfo.metadata.fileName)
   if (downloadInfo.metadata.filePath != filePath) updateFilePath(downloadInfo, filePath)
 
   setStatusText(downloadInfo, window.i18n.t('download_status_start'))
 
-  await window.lx.worker.download.startTask(toRaw(downloadInfo), appSetting['download.savePath'], appSetting['download.skipExistFile'], proxyCallback((event: LX.Download.DownloadTaskActions) => {
+  await window.lx.worker.download.startTask(toRaw(downloadInfo), savePath, appSetting['download.skipExistFile'], proxyCallback((event: LX.Download.DownloadTaskActions) => {
     // console.log(event)
     switch (event.action) {
       case 'start':
@@ -281,7 +311,7 @@ const handleStartTask = async(downloadInfo: LX.Download.ListItem) => {
       default:
         break
     }
-  }))
+  }), getProxy())
 }
 const startTask = async(downloadInfo: LX.Download.ListItem) => {
   setStatus(downloadInfo, DOWNLOAD_STATUS.RUN)
@@ -329,12 +359,11 @@ const filterTask = (list: LX.Download.ListItem[]) => {
  * @param list 要下载的歌曲
  * @param quality 下载音质
  */
-export const createDownloadTasks = async(list: LX.Music.MusicInfoOnline[], quality: LX.Quality) => {
+export const createDownloadTasks = async(list: LX.Music.MusicInfoOnline[], quality: LX.Quality, listId?: string) => {
   if (!list.length) return
   const tasks = filterTask(await window.lx.worker.download.createDownloadTasks(list, quality,
-    appSetting['download.savePath'],
     appSetting['download.fileName'],
-    toRaw(qualityList.value)),
+    toRaw(qualityList.value), listId),
   )
 
   if (tasks.length) await addTasks(tasks)

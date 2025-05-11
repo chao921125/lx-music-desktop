@@ -2,6 +2,19 @@ import http from 'node:http'
 import querystring from 'node:querystring'
 import type { Socket } from 'node:net'
 import { getAddress } from '@common/utils/nodejs'
+import { sendTaskbarButtonClick } from '@main/modules/winMain'
+
+const sendResponse = (res: http.ServerResponse, code = 200, msg: string | Record<any, unknown> = 'OK', contentType = 'text/plain; charset=utf-8') => {
+  res.writeHead(code, {
+    'Content-Type': contentType,
+    'Access-Control-Allow-Origin': '*',
+  })
+  if (typeof msg === 'object') {
+    res.end(JSON.stringify(msg))
+  } else {
+    res.end(msg)
+  }
+}
 
 let status: LX.OpenAPI.Status = {
   status: false,
@@ -37,15 +50,14 @@ const handleSendStatus = (res: http.ServerResponse<http.IncomingMessage>, query?
   const keys = parseFilter(querystring.parse(query ?? '').filter)
   const resp: Partial<Record<SubscribeKeys, any>> = {}
   for (const k of keys) resp[k] = global.lx.player_status[k]
-  res.setHeader('Content-Type', 'application/json; charset=utf-8')
-  res.writeHead(200)
-  res.end(JSON.stringify(resp))
+  sendResponse(res, 200, resp, 'application/json; charset=utf-8')
 }
 const handleSubscribePlayerStatus = (req: http.IncomingMessage, res: http.ServerResponse<http.IncomingMessage>, query?: string) => {
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     Connection: 'keep-alive',
     'Cache-Control': 'no-cache',
+    'Access-Control-Allow-Origin': '*',
   })
   req.socket.setTimeout(0)
   req.on('close', () => {
@@ -65,8 +77,8 @@ const handleStartServer = async(port: number, ip: string) => new Promise<void>((
   playerStatusKeys = Object.keys(global.lx.player_status) as SubscribeKeys[]
   httpServer = http.createServer((req, res): void => {
     const [endUrl, query] = `/${req.url?.split('/').at(-1) ?? ''}`.split('?')
-    let code
-    let msg
+    let code = 200
+    let msg = 'OK'
     switch (endUrl) {
       case '/status':
         handleSendStatus(res, query)
@@ -116,10 +128,58 @@ const handleStartServer = async(port: number, ip: string) => new Promise<void>((
       //   </html>`
       //   break
       case '/lyric':
-        code = 200
-        res.setHeader('Content-Type', 'text/plain; charset=utf-8')
         msg = global.lx.player_status.lyric
         break
+      case '/play':
+        sendTaskbarButtonClick('play')
+        break
+      case '/pause':
+        sendTaskbarButtonClick('pause')
+        break
+      case '/skip-next':
+        sendTaskbarButtonClick('next')
+        break
+      case '/skip-prev':
+        sendTaskbarButtonClick('prev')
+        break
+      case '/seek': {
+        const offset = parseFloat(querystring.parse(query ?? '').offset as string)
+        if (Number.isNaN(offset) || offset < 0 || offset > global.lx.player_status.duration) {
+          code = 400
+          msg = 'Invalid offset'
+        } else {
+          sendTaskbarButtonClick('seek', parseFloat(offset.toFixed(3)))
+        }
+        break
+      }
+      case '/collect':
+        sendTaskbarButtonClick('collect')
+        break
+      case '/uncollect':
+        sendTaskbarButtonClick('unCollect')
+        break
+      case '/volume': {
+        const volume = parseInt(querystring.parse(query ?? '').volume as string)
+        if (Number.isNaN(volume) || volume < 0 || volume > 100) {
+          code = 400
+          msg = 'Invalid volume'
+        } else {
+          sendTaskbarButtonClick('volume', volume / 100)
+        }
+        break
+      }
+      case '/mute': {
+        const mute = querystring.parse(query ?? '').mute
+        if (mute == 'true') {
+          sendTaskbarButtonClick('mute', true)
+        } else if (mute == 'false') {
+          sendTaskbarButtonClick('mute', false)
+        } else {
+          code = 400
+          msg = 'Invalid mute value'
+        }
+        break
+      }
       case '/subscribe-player-status':
         try {
           handleSubscribePlayerStatus(req, res, query)
@@ -135,9 +195,7 @@ const handleStartServer = async(port: number, ip: string) => new Promise<void>((
         msg = 'Forbidden'
         break
     }
-    if (!code) return
-    res.writeHead(code)
-    res.end(msg)
+    sendResponse(res, code, msg)
   })
   httpServer.on('error', error => {
     console.log(error)

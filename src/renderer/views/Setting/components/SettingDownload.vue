@@ -5,6 +5,8 @@ dd
     base-checkbox(id="setting_download_enable" :model-value="appSetting['download.enable']" :label="$t('setting__download_enable')" @update:model-value="updateSetting({'download.enable': $event})")
   .gap-top
     base-checkbox(id="setting_download_skip_exist_file" :model-value="appSetting['download.skipExistFile']" :label="$t('setting__download_skip_exist_file')" @update:model-value="updateSetting({'download.skipExistFile': $event})")
+  .gap-top
+    base-checkbox(id="setting_download_save_group_list_name" :model-value="appSetting['download.isSavePathGroupByListName']" :label="$t('setting_download_save_group_list_name')" @update:model-value="updateSetting({'download.isSavePathGroupByListName': $event})")
 dd(:aria-label="$t('setting__download_path_title')")
   h3#download_path {{ $t('setting__download_path') }}
   div
@@ -13,6 +15,15 @@ dd(:aria-label="$t('setting__download_path_title')")
       span.auto-hidden.hover(:class="$style.savePath" :aria-label="$t('setting__download_path_open_label')" @click="openDirInExplorer(appSetting['download.savePath'])") {{ appSetting['download.savePath'] }}
     .p
       base-btn.btn(min @click="handleChangeSavePath") {{ $t('setting__download_path_change_btn') }}
+
+dd
+  h3#download_max_num
+    | {{ $t('setting__download_max_num') }}
+    svg-icon(class="help-icon" name="help-circle-outline" :aria-label="$t('setting__download_max_num_tooltip')")
+  div
+    p
+      base-selection.gap-left(:class="$style.selectWidth" :model-value="appSetting['download.maxDownloadNum']" :list="maxNums" item-key="id" item-name="id" @change="handleUpdateMaxNum")
+
 dd
   h3#download_use_other_source
     | {{ $t('setting__download_use_other_source') }}
@@ -45,7 +56,9 @@ dd(:aria-label="$t('setting__download_lyric_title')")
   .gap-top
     base-checkbox(id="setting_download_isDownloadRLrc" :disabled="!appSetting['download.isDownloadLrc']" :model-value="appSetting['download.isDownloadRLrc']" :label="$t('setting__download_rlyric')" @update:model-value="updateSetting({'download.isDownloadRLrc': $event})")
 dd
-  h3#download_lyric_format {{ $t('setting__download_lyric_format') }}
+  h3#download_lyric_format
+    | {{ $t('setting__download_lyric_format') }}
+    svg-icon(class="help-icon" name="help-circle-outline" :aria-label="$t('setting__download_lyric_format_tip')")
   div
     base-checkbox.gap-left(
       v-for="item in lrcFormatList" :id="`setting_download_lrcFormat_${item.id}`" :key="item.id"
@@ -59,6 +72,7 @@ import { computed } from '@common/utils/vueTools'
 import { showSelectDialog, openDirInExplorer } from '@renderer/utils/ipc'
 import { useI18n } from '@renderer/plugins/i18n'
 import { appSetting, updateSetting } from '@renderer/store/setting'
+import { dialog } from '@renderer/plugins/Dialog'
 
 export default {
   name: 'SettingDownload',
@@ -74,6 +88,14 @@ export default {
         if (result.canceled) return
         updateSetting({ 'download.savePath': result.filePaths[0] })
       })
+    }
+
+    const maxNums = new Array(6).fill(null).map((_, i) => ({ id: i + 1 }))
+    const handleUpdateMaxNum = async({ id }) => {
+      if (id > 3) {
+        if (!await dialog.confirm(window.i18n.t('setting__download_max_num_tip'))) return
+      }
+      updateSetting({ 'download.maxDownloadNum': id })
     }
 
     const musicNames = computed(() => {
@@ -98,6 +120,8 @@ export default {
       handleChangeSavePath,
       musicNames,
       lrcFormatList,
+      maxNums,
+      handleUpdateMaxNum,
     }
   },
 }
@@ -107,4 +131,7 @@ export default {
 // .savePath {
 //   font-size: 12px;
 // }
+.selectWidth {
+  width: 60px;
+}
 </style>

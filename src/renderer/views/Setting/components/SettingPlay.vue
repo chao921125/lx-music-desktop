@@ -9,6 +9,7 @@ dd
     base-checkbox(id="setting_player_save_play_time" :model-value="appSetting['player.isSavePlayTime']" :label="$t('setting__play_save_play_time')" @update:model-value="updateSetting({'player.isSavePlayTime': $event})")
   .gap-top
     base-checkbox(id="setting_player_auto_clean_played_list" :model-value="appSetting['player.isAutoCleanPlayedList']" :label="$t('setting__play_auto_clean_played_list')" @update:model-value="updateSetting({'player.isAutoCleanPlayedList': $event})")
+    svg-icon(class="help-icon" name="help-circle-outline" :aria-label="$t('setting__play_auto_clean_played_list_tip')")
   .gap-top
     base-checkbox(id="setting_player_lyric_transition" :model-value="appSetting['player.isShowLyricTranslation']" :label="$t('setting__play_lyric_transition')" @update:model-value="updateSetting({'player.isShowLyricTranslation': $event})")
   .gap-top
@@ -19,8 +20,14 @@ dd
     base-checkbox(id="setting_player_lyric_s2t" :model-value="appSetting['player.isS2t']" :label="$t('setting__play_lyric_s2t')" @update:model-value="updateSetting({'player.isS2t': $event})")
   .gap-top
     base-checkbox(id="setting_player_lyric_play_lxlrc" :model-value="appSetting['player.isPlayLxlrc']" :label="$t('setting__play_lyric_lxlrc')" @update:model-value="updateSetting({'player.isPlayLxlrc': $event})")
+    svg-icon(class="help-icon" name="help-circle-outline" :aria-label="$t('setting__play_lyric_lxlrc_tip')")
   .gap-top
     base-checkbox(id="setting_player_showTaskProgess" :model-value="appSetting['player.isShowTaskProgess']" :label="$t('setting__play_task_bar')" @update:model-value="updateSetting({'player.isShowTaskProgess': $event})")
+  .gap-top(v-if="isMac")
+    base-checkbox(id="setting_player_showStatusBarLyric" :model-value="appSetting['player.isShowStatusBarLyric']" :label="$t('setting__play_statusbar_lyric')" @update:model-value="updateSetting({'player.isShowStatusBarLyric': $event})")
+    svg-icon(class="help-icon" name="help-circle-outline" :aria-label="$t('setting__play_statusbar_lyric_tip')")
+  .gap-top
+    base-checkbox(id="setting_player_isMaxOutputChannelCount" :model-value="isMaxOutputChannelCount" :label="$t('setting__play_max_output_channel_count')" @update:model-value="handleUpdateMaxOutputChannelCount")
   .gap-top
     base-checkbox(id="setting_player_isMediaDeviceRemovedStopPlay" :model-value="appSetting['player.isMediaDeviceRemovedStopPlay']" :label="$t('setting__play_mediaDevice_remove_stop_play')" @update:model-value="updateSetting({'player.isMediaDeviceRemovedStopPlay': $event})")
 
@@ -40,13 +47,14 @@ dd(:aria-label="$t('setting__play_mediaDevice_title')")
 
 <script>
 import { ref, onBeforeUnmount, watch } from '@common/utils/vueTools'
-import { hasInitedAdvancedAudioFeatures } from '@renderer/plugins/player'
+import { hasInitedAdvancedAudioFeatures, setMediaDeviceId } from '@renderer/plugins/player'
 import { dialog } from '@renderer/plugins/Dialog'
 import { useI18n } from '@renderer/plugins/i18n'
-import { appSetting, updateSetting } from '@renderer/store/setting'
+import { appSetting, saveMediaDeviceId, updateSetting } from '@renderer/store/setting'
 import { setPowerSaveBlocker } from '@renderer/core/player/utils'
 import { isPlay } from '@renderer/store/player/state'
 import { TRY_QUALITYS_LIST } from '@renderer/core/music/utils'
+import { isMac } from '@common/utils'
 
 
 export default {
@@ -84,8 +92,10 @@ export default {
           confirmButtonText: t('confirm_button_text'),
         })
         if (confirm) {
-          appSetting['player.audioVisualization'] = false
-          appSetting['player.mediaDeviceId'] = mediaDeviceId.value
+          updateSetting({
+            'player.audioVisualization': false,
+            'player.mediaDeviceId': mediaDeviceId.value,
+          })
         } else {
           mediaDeviceId.value = appSetting['player.mediaDeviceId']
         }
@@ -106,6 +116,25 @@ export default {
       updateSetting({ 'player.powerSaveBlocker': enabled })
     }
 
+    const isMaxOutputChannelCount = ref(appSetting['player.isMaxOutputChannelCount'])
+    const handleUpdateMaxOutputChannelCount = async(enabled) => {
+      isMaxOutputChannelCount.value = enabled
+      if (appSetting['player.mediaDeviceId'] != 'default') {
+        const confirm = await dialog.confirm({
+          message: t('setting__play_advanced_audio_features_tip'),
+          cancelButtonText: t('cancel_button_text'),
+          confirmButtonText: t('confirm_button_text'),
+        })
+        if (!confirm) {
+          isMaxOutputChannelCount.value = false
+          return
+        }
+        await setMediaDeviceId('default').catch(_ => _)
+        saveMediaDeviceId('default')
+      }
+      updateSetting({ 'player.isMaxOutputChannelCount': enabled })
+    }
+
 
     return {
       appSetting,
@@ -114,7 +143,10 @@ export default {
       mediaDeviceId,
       handleMediaDeviceIdChnage,
       handleUpdatePowerSaveBlocker,
+      isMaxOutputChannelCount,
+      handleUpdateMaxOutputChannelCount,
       playQualityList,
+      isMac,
     }
   },
 }

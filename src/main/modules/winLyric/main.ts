@@ -1,7 +1,7 @@
 import path from 'node:path'
 import { BrowserWindow } from 'electron'
-import { debounce, isLinux, isWin } from '@common/utils'
-import { initWindowSize } from './utils'
+import { debounce, getPlatform, isLinux, isWin } from '@common/utils'
+import { initWindowSize, minHeight, minWidth } from './utils'
 import { mainSend } from '@common/mainIpc'
 import { encodePath } from '@common/utils/electron'
 
@@ -55,6 +55,7 @@ const winEvent = () => {
   browserWindow.on('resize', () => {
     // bounds = browserWindow.getBounds()
     // console.log(bounds)
+    isWinBoundsUpdateing = true
     const bounds = browserWindow!.getBounds()
     saveBoundsConfig({
       'desktopLyric.x': bounds.x,
@@ -114,17 +115,19 @@ export const createWindow = () => {
     width: winSize.width,
     x: winSize.x,
     y: winSize.y,
-    minWidth: 380,
-    minHeight: 80,
+    minWidth,
+    minHeight,
     useContentSize: true,
     frame: false,
     transparent: true,
+    hasShadow: false,
     // enableRemoteModule: false,
     // icon: join(global.__static, isWin ? 'icons/256x256.ico' : 'icons/512x512.png'),
-    resizable: false,
+    resizable: isWin,
     minimizable: false,
     maximizable: false,
     fullscreenable: false,
+    roundedCorners: false,
     show: false,
     alwaysOnTop: isAlwaysOnTop,
     skipTaskbar: !isShowTaskbar,
@@ -136,14 +139,16 @@ export const createWindow = () => {
       enableWebSQL: false,
       webgl: false,
       spellcheck: false, // 禁用拼写检查器
+      backgroundThrottling: false,
     },
   })
 
   const winURL = process.env.NODE_ENV !== 'production' ? 'http://localhost:9081/lyric.html' : `file://${path.join(encodePath(__dirname), 'lyric.html')}`
-  void browserWindow.loadURL(winURL + `?dark=${shouldUseDarkColors}&theme=${encodeURIComponent(JSON.stringify(theme))}`)
+  void browserWindow.loadURL(winURL + `?os=${getPlatform()}&dark=${shouldUseDarkColors}&theme=${encodeURIComponent(JSON.stringify(theme))}`)
 
   winEvent()
   // browserWindow.webContents.openDevTools()
+  global.lx.event_app.desktop_lyric_window_created(browserWindow)
 }
 export const isExistWindow = (): boolean => !!browserWindow
 
@@ -155,6 +160,11 @@ export const closeWindow = () => {
 export const showWindow = () => {
   if (!browserWindow) return
   browserWindow.show()
+}
+
+export const setResizeable = (isResizeable: boolean) => {
+  if (!browserWindow) return
+  browserWindow.setResizable(isResizeable)
 }
 
 export const sendEvent = <T = any>(name: string, params?: T) => {
@@ -216,7 +226,7 @@ export const alwaysOnTopTools: AlwaysOnTopTools = {
         return
       }
       setAlwaysOnTop(true, 'screen-saver')
-    }, 1000)
+    }, 500)
   },
   clearLoop() {
     if (!this.timeout) return

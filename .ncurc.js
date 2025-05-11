@@ -10,8 +10,13 @@ module.exports = {
     'message2call',
     '@types/ws',
     'eslint',
+    '@types/node',
+    'electron-debug',
+    'eslint-webpack-plugin',
+
+    'eslint-plugin-vue',
+    'vue-eslint-parser',
     // 'eslint-config-standard-with-typescript',
-    // 'typescript', // https://github.com/microsoft/TypeScript/pull/54567
   ],
 
   // target: 'newest',
@@ -29,5 +34,11 @@ module.exports = {
   // filter: [
   //   'electron',
   //   'eslint',
+  //   'eslint-webpack-plugin',
+  //   'electron-debug',
+  //   '@types/node',
+
+  //   'eslint-plugin-vue',
+  //   'vue-eslint-parser',
   // ],
 }

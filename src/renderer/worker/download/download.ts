@@ -8,7 +8,7 @@ import { createDownloadInfo } from './utils'
 //   assertApiSupport,
 //   getExt,
 // } from '..'
-import { checkPath, getFileStats, removeFile } from '@common/utils/nodejs'
+import { checkAndCreateDir, checkPath, getFileStats, removeFile } from '@common/utils/nodejs'
 import { DOWNLOAD_STATUS } from '@common/constants'
 // import { download as eventDownloadNames } from '@renderer/event/names'
 
@@ -40,12 +40,12 @@ const sendAction = (id: string, action: LX.Download.DownloadTaskActions) => {
 export const createDownloadTasks = (
   list: LX.Music.MusicInfoOnline[],
   quality: LX.Quality,
-  savePath: string,
   fileNameFormat: string,
   qualityList: LX.QualityList,
+  listId?: string,
 ): LX.Download.ListItem[] => {
   return list.map(musicInfo => {
-    return createDownloadInfo(musicInfo, quality, fileNameFormat, savePath, qualityList)
+    return createDownloadInfo(musicInfo, quality, fileNameFormat, qualityList, listId)
   }).filter(task => task)
   // commit('addTasks', { list: taskList, addMusicLocationType: rootState.setting.list.addMusicLocationType })
   // let result = getStartTask(downloadList, DOWNLOAD_STATUS, rootState.setting.download.maxDownloadNum)
@@ -55,12 +55,12 @@ export const createDownloadTasks = (
   // }
 }
 
-const createTask = async(downloadInfo: LX.Download.ListItem, savePath: string, skipExistFile: boolean) => {
+const createTask = async(downloadInfo: LX.Download.ListItem, savePath: string, skipExistFile: boolean, proxy?: { host: string, port: number }) => {
   // console.log('createTask', downloadInfo, savePath)
   // 开始任务
   /* commit('onStart', downloadInfo)
   commit('setStatusText', { downloadInfo, text: '任务初始化中' }) */
-  if (!await checkPath(savePath)) {
+  if (!await checkAndCreateDir(savePath)) {
     sendAction(downloadInfo.id, {
       action: 'error',
       data: {
@@ -103,6 +103,7 @@ const createTask = async(downloadInfo: LX.Download.ListItem, savePath: string, s
     path: savePath,
     fileName: downloadInfo.metadata.fileName,
     method: 'get',
+    proxy,
     onCompleted() {
       // if (downloadInfo.progress.progress != '100.00') {
       //   delete.get(downloadInfo.id)?
@@ -114,7 +115,7 @@ const createTask = async(downloadInfo: LX.Download.ListItem, savePath: string, s
       console.log('on complate')
     },
     onError(err: any) {
-      console.log(err)
+      console.error(err)
       if (err.code == 'EPERM') {
         sendAction(downloadInfo.id, {
           action: 'error',
@@ -157,8 +158,9 @@ const createTask = async(downloadInfo: LX.Download.ListItem, savePath: string, s
         sendAction(downloadInfo.id, { action: 'refreshUrl' })
       } else {
         console.log('Download failed, Attempting Retry')
-        void dls.get(downloadInfo.id)?.start()
-        console.log('正在重试')
+        setTimeout(() => {
+          void dls.get(downloadInfo.id)?.start()
+        }, 1000)
       }
     },
     onFail(response) {
@@ -240,7 +242,7 @@ export const updateUrl = (id: string, url: string) => {
   })
 }
 
-export const startTask = async(downloadInfo: LX.Download.ListItem, savePath: string, skipExistFile: boolean, callback: (action: LX.Download.DownloadTaskActions) => void) => {
+export const startTask = async(downloadInfo: LX.Download.ListItem, savePath: string, skipExistFile: boolean, callback: (action: LX.Download.DownloadTaskActions) => void, proxy?: { host: string, port: number }) => {
   await pauseTask(downloadInfo.id)
 
   tasks.set(downloadInfo.id, downloadInfo)
@@ -275,7 +277,7 @@ export const startTask = async(downloadInfo: LX.Download.ListItem, savePath: str
       // await dispatch('startTask')
     }
   } else {
-    await createTask(downloadInfo, savePath, skipExistFile)
+    await createTask(downloadInfo, savePath, skipExistFile, proxy)
     // await dispatch('handleStartTask', downloadInfo)
   }
 }

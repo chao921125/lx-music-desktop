@@ -6,9 +6,10 @@ import apiSourceInfo from '@renderer/utils/musicSdk/api-source-info'
 
 let prevId = ''
 export const setUserApi = async(apiId: string) => {
+  if (prevId == apiId) return
   prevId = apiId
   if (window.lx.apiInitPromise[1]) {
-    window.lx.apiInitPromise[0] = new Promise(resolve => {
+    window.lx.apiInitPromise[0] = new Promise<boolean>(resolve => {
       window.lx.apiInitPromise[1] = false
       window.lx.apiInitPromise[2] = (result: boolean) => {
         window.lx.apiInitPromise[1] = true
@@ -42,5 +43,6 @@ export const setUserApi = async(apiId: string) => {
     if (!window.lx.apiInitPromise[1]) window.lx.apiInitPromise[2](true)
   }
 
+  if (prevId != apiId) return
   if (apiId != appSetting['common.apiSource']) setApiSource(apiId)
 }
