@@ -6,6 +6,14 @@ export const toNewMusicInfo = (oldMusicInfo: any): LX.Music.MusicInfo => {
     albumName: oldMusicInfo.albumName, // 歌曲专辑名称
     picUrl: oldMusicInfo.img, // 歌曲图片链接
   }
+  const newInfo = {
+    id: `${oldMusicInfo.source}_${oldMusicInfo.songmid}`,
+    name: oldMusicInfo.name,
+    singer: oldMusicInfo.singer,
+    source: oldMusicInfo.source,
+    interval: oldMusicInfo.interval,
+    meta: meta as LX.Music.MusicInfoOnline['meta'],
+  }
 
   if (oldMusicInfo.source == 'local') {
     meta.filePath = oldMusicInfo.filePath ?? oldMusicInfo.songmid ?? ''
@@ -27,6 +35,7 @@ export const toNewMusicInfo = (oldMusicInfo: any): LX.Music.MusicInfo => {
     switch (oldMusicInfo.source) {
       case 'kg':
         meta.hash = oldMusicInfo.hash
+        newInfo.id = oldMusicInfo.songmid + '_' + oldMusicInfo.hash
         break
       case 'tx':
         meta.strMediaMid = oldMusicInfo.strMediaMid
@@ -42,14 +51,7 @@ export const toNewMusicInfo = (oldMusicInfo: any): LX.Music.MusicInfo => {
     }
   }
 
-  return {
-    id: `${oldMusicInfo.source as string}_${oldMusicInfo.songmid as string}`,
-    name: oldMusicInfo.name,
-    singer: oldMusicInfo.singer,
-    source: oldMusicInfo.source,
-    interval: oldMusicInfo.interval,
-    meta: meta as LX.Music.MusicInfoOnline['meta'],
-  }
+  return newInfo
 }
 
 export const toOldMusicInfo = (minfo: LX.Music.MusicInfo) => {
@@ -128,3 +130,21 @@ export const filterMusicList = <T extends LX.Music.MusicInfo>(list: T[]): T[] =>
     return true
   })
 }
+
+
+const MAX_NAME_LENGTH = 80
+const MAX_FILE_NAME_LENGTH = 150
+export const clipNameLength = (name: string) => {
+  if (name.length <= MAX_NAME_LENGTH || !name.includes('、')) return name
+  const names = name.split('、')
+  let newName = names.shift()!
+  for (const name of names) {
+    if (newName.length + name.length > MAX_NAME_LENGTH) break
+    newName = newName + '、' + name
+  }
+  return newName
+}
+export const clipFileNameLength = (name: string) => {
+  return name.length > MAX_FILE_NAME_LENGTH ? name.substring(0, MAX_FILE_NAME_LENGTH) : name
+}
+

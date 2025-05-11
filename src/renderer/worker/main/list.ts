@@ -9,7 +9,7 @@ import { createLocalMusicInfo } from '@renderer/utils/music'
 /**
  * 过滤列表中已播放的歌曲
  */
-export const filterMusicList = async({ playedList, listId, list, savePath, playerMusicInfo, dislikeInfo, isNext }: {
+export const filterMusicList = async({ playedList, listId, list, playerMusicInfo, dislikeInfo, isNext }: {
   /**
    * 已播放列表
    */
@@ -25,7 +25,7 @@ export const filterMusicList = async({ playedList, listId, list, savePath, playe
   /**
    * 下载目录
    */
-  savePath: string
+  // savePath: string
   /**
    * 播放器内当前歌曲（`playInfo.playerPlayIndex`指向的歌曲）
    */
@@ -118,6 +118,8 @@ const getIntv = (musicInfo: LX.Music.MusicInfo) => {
   return intv
 }
 
+export type SortFieldName = 'name' | 'singer' | 'albumName' | 'interval' | 'source'
+export type SortFieldType = 'up' | 'down' | 'random'
 /**
  * 排序歌曲
  * @param list 歌曲列表
@@ -126,7 +128,7 @@ const getIntv = (musicInfo: LX.Music.MusicInfo) => {
  * @param localeId 排序语言
  * @returns
  */
-export const sortListMusicInfo = async(list: LX.Music.MusicInfo[], sortType: 'up' | 'down' | 'random', fieldName: 'name' | 'singer' | 'albumName' | 'interval' | 'source', localeId: string) => {
+export const sortListMusicInfo = async(list: LX.Music.MusicInfo[], sortType: SortFieldType, fieldName: SortFieldName, localeId: string) => {
   // console.log(sortType, fieldName, localeId)
   // const locale = new Intl.Locale(localeId)
   switch (sortType) {

@@ -1,5 +1,5 @@
 import { Tray, Menu, nativeImage } from 'electron'
-import { isWin } from '@common/utils'
+import { isMac, isWin } from '@common/utils'
 import path from 'node:path'
 import {
   hideWindow as hideMainWindow,
@@ -9,10 +9,12 @@ import {
   showWindow as showMainWindow,
 } from './winMain'
 import { quitApp } from '@main/app'
+import { TRAY_AUTO_ID } from '@common/constants'
 
 let tray: Electron.Tray | null
 let isEnableTray: boolean = false
 let themeId: number
+let isShowStatusBarLyric: boolean = false
 
 const playerState = {
   empty: false,
@@ -28,6 +30,7 @@ const watchConfigKeys = [
   'desktopLyric.isAlwaysOnTop',
   'tray.themeId',
   'tray.enable',
+  'player.isShowStatusBarLyric',
   'common.langId',
 ] satisfies Array<keyof LX.AppSetting>
 
@@ -51,21 +54,25 @@ const themeList = [
 
 const messages = {
   'en-us': {
-    collect: 'Collection',
-    uncollect: 'Cancel collection',
+    collect: 'Love',
+    uncollect: 'Unlove',
     play: 'Play',
     pause: 'Pause',
-    next: 'Next song',
-    prev: 'Previous song',
+    next: 'Next Song',
+    prev: 'Prev Song',
     hide_win_main: 'Hide Main Window',
     show_win_main: 'Show Main Window',
-    hide_win_lyric: 'Close desktop lyrics',
-    show_win_lyric: 'Open desktop lyrics',
-    lock_win_lyric: 'Lock desktop lyrics',
-    unlock_win_lyric: 'Unlock desktop lyrics',
-    top_win_lyric: 'Set top lyrics',
-    untop_win_lyric: 'Cancel top lyrics',
+    hide_win_lyric: 'Hide Lyric Window',
+    show_win_lyric: 'Show Lyric Window',
+    lock_win_lyric: 'Lock Lyric Window',
+    unlock_win_lyric: 'Unlock Lyric Window',
+    top_win_lyric: 'On-top Lyric Window',
+    untop_win_lyric: 'Un-top Lyric Window',
+    show_statusbar_lyric: 'Show Lyrics on Statusbar',
+    hide_statusbar_lyric: 'Hide Lyrics on Statusbar',
     exit: 'Exit',
+    music_name: 'Title: ',
+    music_singer: 'Artist: ',
   },
   'zh-cn': {
     collect: '收藏',
@@ -82,7 +89,11 @@ const messages = {
     unlock_win_lyric: '解锁桌面歌词',
     top_win_lyric: '置顶歌词',
     untop_win_lyric: '取消置顶',
+    show_statusbar_lyric: '显示状态栏歌词',
+    hide_statusbar_lyric: '隐藏状态栏歌词',
     exit: '退出',
+    music_name: '歌曲名: ',
+    music_singer: '艺术家: ',
   },
   'zh-tw': {
     collect: '收藏',
@@ -91,15 +102,19 @@ const messages = {
     pause: '暫停',
     next: '下一曲',
     prev: '上一曲',
-    hide_win_main: '隱藏主界面',
-    show_win_main: '顯示主界面',
-    hide_win_lyric: '關閉桌面歌詞',
-    show_win_lyric: '開啟桌面歌詞',
-    lock_win_lyric: '鎖定桌面歌詞',
-    unlock_win_lyric: '解鎖桌面歌詞',
-    top_win_lyric: '置頂歌詞',
-    untop_win_lyric: '取消置頂',
+    hide_win_main: '隱藏軟體視窗',
+    show_win_main: '顯示軟體視窗',
+    hide_win_lyric: '關閉歌詞視窗',
+    show_win_lyric: '開啟歌詞視窗',
+    lock_win_lyric: '鎖定歌詞視窗',
+    unlock_win_lyric: '解鎖歌詞視窗',
+    top_win_lyric: '置頂歌詞視窗',
+    untop_win_lyric: '取消置頂歌詞視窗',
+    show_statusbar_lyric: '顯示狀態列歌詞',
+    hide_statusbar_lyric: '隱藏狀態列歌詞',
     exit: '退出',
+    music_name: '標題: ',
+    music_singer: '演出者: ',
   },
 } as const
 type Messages = typeof messages
@@ -117,19 +132,23 @@ const i18n = {
   },
 }
 
+const getIconPath = (id: number) => {
+  let theme = id == TRAY_AUTO_ID
+    ? global.lx.theme.shouldUseDarkColors
+      ? themeList[0] : themeList[2]
+    : themeList.find(item => item.id === id) ?? themeList[0]
+  return path.join(global.staticPath, 'images/tray', theme.fileName + (isWin ? '.ico' : '.png'))
+}
+
 export const createTray = () => {
   // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
   if ((tray && !tray.isDestroyed()) || !global.lx.appSetting['tray.enable']) return
 
-  themeId = global.lx.appSetting['tray.themeId']
-  let theme = themeList.find(item => item.id === themeId) ?? themeList[0]
-  const iconPath = path.join(global.staticPath, 'images/tray', theme.fileName + '.png')
-
   // 托盘
-  tray = new Tray(nativeImage.createFromPath(iconPath))
+  tray = new Tray(nativeImage.createFromPath(getIconPath(global.lx.appSetting['tray.themeId'])))
 
-  tray.setToolTip('LX Music')
-  createMenu()
+  // tray.setToolTip('LX Music')
+  // createMenu()
   tray.setIgnoreDoubleClickEvents(true)
   tray.on('click', () => {
     showMainWindow()
@@ -140,11 +159,12 @@ export const destroyTray = () => {
   if (!tray) return
   tray.destroy()
   isEnableTray = false
+  isShowStatusBarLyric = false
   tray = null
 }
 
-const handleUpdateConfig = (config: any) => {
-  global.lx.event_app.update_config(config)
+const handleUpdateConfig = (setting: Partial<LX.AppSetting>) => {
+  global.lx.event_app.update_config(setting)
 }
 
 const createPlayerMenu = () => {
@@ -230,6 +250,22 @@ export const createMenu = () => {
           handleUpdateConfig({ 'desktopLyric.isAlwaysOnTop': true })
         },
       })
+  if (isMac) {
+    menu.push({ type: 'separator' })
+    menu.push(isShowStatusBarLyric
+      ? {
+          label: i18n.getMessage('hide_statusbar_lyric'),
+          click() {
+            handleUpdateConfig({ 'player.isShowStatusBarLyric': false })
+          },
+        }
+      : {
+          label: i18n.getMessage('show_statusbar_lyric'),
+          click() {
+            handleUpdateConfig({ 'player.isShowStatusBarLyric': true })
+          },
+        })
+  }
   menu.push({ type: 'separator' })
   if (isExistMainWindow()) {
     const isShow = isShowMainWindow()
@@ -259,9 +295,29 @@ export const createMenu = () => {
 
 export const setTrayImage = (themeId: number) => {
   if (!tray) return
-  let theme = themeList.find(item => item.id === themeId) ?? themeList[0]
-  const iconPath = path.join(global.staticPath, 'images/tray', theme.fileName + '.png')
-  tray.setImage(nativeImage.createFromPath(iconPath))
+  tray.setImage(nativeImage.createFromPath(getIconPath(themeId)))
+}
+
+const setLyric = (lyricLineText?: string) => {
+  if (isShowStatusBarLyric && tray && lyricLineText != null) {
+    tray.setTitle(lyricLineText)
+  }
+}
+
+const defaultTip = 'LX Music'
+const setTip = () => {
+  if (!tray) return
+
+  let name = global.lx.player_status.name
+  let tip: string
+  if (name) {
+    if (name.length > 20) name = name.substring(0, 20) + '...'
+    let singer = global.lx.player_status.singer
+    if (singer?.length > 20) singer = singer.substring(0, 20) + '...'
+
+    tip = `${defaultTip}\n${i18n.getMessage('music_name')}${name}${singer ? `\n${i18n.getMessage('music_singer')}${singer}` : ''}`
+  } else tip = defaultTip
+  tray.setToolTip(tip)
 }
 
 const init = () => {
@@ -273,6 +329,15 @@ const init = () => {
     isEnableTray = global.lx.appSetting['tray.enable']
     global.lx.appSetting['tray.enable'] ? createTray() : destroyTray()
   }
+  if (isShowStatusBarLyric !== global.lx.appSetting['player.isShowStatusBarLyric']) {
+    isShowStatusBarLyric = global.lx.appSetting['player.isShowStatusBarLyric']
+    if (isShowStatusBarLyric) {
+      setLyric(global.lx.player_status.lyricLineText)
+    } else {
+      tray?.setTitle('')
+    }
+  }
+  setTip()
   createMenu()
 }
 
@@ -311,6 +376,11 @@ export default () => {
     init()
   })
 
+  global.lx.event_app.on('system_theme_change', () => {
+    if (global.lx.appSetting['tray.themeId'] != TRAY_AUTO_ID) return
+    setTrayImage(global.lx.appSetting['tray.themeId'])
+  })
+
   global.lx.event_app.on('player_status', (status) => {
     let updated = false
     if (status.status) {
@@ -318,22 +388,30 @@ export default () => {
         case 'paused':
           playerState.play = false
           playerState.empty &&= false
+          setLyric('')
           break
         case 'error':
           playerState.play = false
           playerState.empty &&= false
+          setLyric('')
           break
         case 'playing':
           playerState.play = true
           playerState.empty &&= false
+          setLyric(global.lx.player_status.lyricLineText)
           break
         case 'stoped':
           playerState.play &&= false
           playerState.empty = true
+          setLyric('')
           break
       }
       updated = true
+    } else {
+      setLyric(status.lyricLineText)
     }
+    if (status.name != null) setTip()
+    if (status.singer != null) setTip()
     if (status.collect != null) {
       playerState.collect = status.collect
       updated = true

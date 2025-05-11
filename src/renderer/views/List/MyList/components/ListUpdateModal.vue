@@ -106,7 +106,7 @@ export default {
   }
 }
 .main {
-  min-height: 200px;
+  min-height: 115px;
   width: @width;
 }
 
@@ -151,7 +151,7 @@ export default {
 .text {
   flex: auto;
   margin-bottom: 2px;
-  .mixin-ellipsis-1;
+  .mixin-ellipsis-1();
 }
 .checkbox {
   margin-top: 3px;

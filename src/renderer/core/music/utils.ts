@@ -2,8 +2,8 @@ import { qualityList } from '@renderer/store'
 import { assertApiSupport } from '@renderer/store/utils'
 import musicSdk from '@renderer/utils/musicSdk'
 import {
-  getOtherSource as getOtherSourceFromStore,
-  saveOtherSource as saveOtherSourceFromStore,
+  // getOtherSource as getOtherSourceFromStore,
+  // saveOtherSource as saveOtherSourceFromStore,
   getMusicUrl as getStoreMusicUrl,
   getPlayerLyric as getStoreLyric,
 } from '@renderer/utils/ipc'
@@ -14,13 +14,15 @@ import { apis } from '@renderer/utils/musicSdk/api-source'
 
 
 const getOtherSourcePromises = new Map()
+const otherSourceCache = new Map<LX.Music.MusicInfo | LX.Download.ListItem, LX.Music.MusicInfoOnline[]>()
 export const existTimeExp = /\[\d{1,2}:.*\d{1,4}\]/
 
 export const getOtherSource = async(musicInfo: LX.Music.MusicInfo | LX.Download.ListItem, isRefresh = false): Promise<LX.Music.MusicInfoOnline[]> => {
-  if (!isRefresh) {
-    const cachedInfo = await getOtherSourceFromStore(musicInfo.id)
-    if (cachedInfo.length) return cachedInfo
-  }
+  // if (!isRefresh && musicInfo.id) {
+  //   const cachedInfo = await getOtherSourceFromStore(musicInfo.id)
+  //   if (cachedInfo.length) return cachedInfo
+  // }
+  if (otherSourceCache.has(musicInfo)) return otherSourceCache.get(musicInfo)!
   let key: string
   let searchMusicInfo: {
     name: string
@@ -56,12 +58,15 @@ export const getOtherSource = async(musicInfo: LX.Music.MusicInfo | LX.Download.
       reject(new Error('find music timeout'))
     }, 15_000)
     musicSdk.findMusic(searchMusicInfo).then((otherSource) => {
-      resolve(otherSource.map(toNewMusicInfo) as LX.Music.MusicInfoOnline[])
+      if (otherSourceCache.size > 10) otherSourceCache.clear()
+      const source = otherSource.map(toNewMusicInfo) as LX.Music.MusicInfoOnline[]
+      otherSourceCache.set(musicInfo, source)
+      resolve(source)
     }).catch(reject).finally(() => {
       if (timeout) clearTimeout(timeout)
     })
   }).then((otherSource) => {
-    if (otherSource.length) void saveOtherSourceFromStore(musicInfo.id, otherSource)
+    // if (otherSource.length) void saveOtherSourceFromStore(musicInfo.id, otherSource)
     return otherSource
   }).finally(() => {
     if (getOtherSourcePromises.has(key)) getOtherSourcePromises.delete(key)
@@ -120,30 +125,33 @@ export const buildLyricInfo = async(lyricInfo: MakeOptional<LX.Player.LyricInfo,
 export const getCachedLyricInfo = async(musicInfo: LX.Music.MusicInfo): Promise<LX.Player.LyricInfo | null> => {
   let lrcInfo = await getStoreLyric(musicInfo)
   // lrcInfo = {} as unknown as LX.Player.LyricInfo
-  if (existTimeExp.test(lrcInfo.lyric) && lrcInfo.tlyric != null) {
-    // if (musicInfo.lrc.startsWith('\ufeff[id:$00000000]')) {
-    //   let str = musicInfo.lrc.replace('\ufeff[id:$00000000]\n', '')
-    //   commit('setLrc', { musicInfo, lyric: str, tlyric: musicInfo.tlrc, lxlyric: musicInfo.tlrc })
-    // } else if (musicInfo.lrc.startsWith('[id:$00000000]')) {
-    //   let str = musicInfo.lrc.replace('[id:$00000000]\n', '')
-    //   commit('setLrc', { musicInfo, lyric: str, tlyric: musicInfo.tlrc, lxlyric: musicInfo.tlrc })
-    // }
+  if (existTimeExp.test(lrcInfo.lyric)) {
+    if (lrcInfo.tlyric != null) {
+      // if (musicInfo.lrc.startsWith('\ufeff[id:$00000000]')) {
+      //   let str = musicInfo.lrc.replace('\ufeff[id:$00000000]\n', '')
+      //   commit('setLrc', { musicInfo, lyric: str, tlyric: musicInfo.tlrc, lxlyric: musicInfo.tlrc })
+      // } else if (musicInfo.lrc.startsWith('[id:$00000000]')) {
+      //   let str = musicInfo.lrc.replace('[id:$00000000]\n', '')
+      //   commit('setLrc', { musicInfo, lyric: str, tlyric: musicInfo.tlrc, lxlyric: musicInfo.tlrc })
+      // }
 
-    if (lrcInfo.lxlyric == null) {
-      switch (musicInfo.source) { // 以下源支持lxlyric 重新获取
-        case 'kg':
-        case 'kw':
-        case 'mg':
-        case 'wy':
-        case 'tx':
-          break
-        default:
-          return lrcInfo
-      }
-    } else if (lrcInfo.rlyric == null) {
-      // 以下源支持 rlyric 重新获取
-      if (!['wy', 'kg', 'tx'].includes(musicInfo.source)) return lrcInfo
-    } else return lrcInfo
+      if (lrcInfo.lxlyric == null) {
+        switch (musicInfo.source) { // 以下源支持lxlyric 重新获取
+          case 'kg':
+          case 'kw':
+          case 'mg':
+          case 'wy':
+          case 'tx':
+            break
+          default:
+            return lrcInfo
+        }
+      } else if (lrcInfo.rlyric == null) {
+        // 以下源支持 rlyric 重新获取
+        if (!['wy', 'kg', 'tx'].includes(musicInfo.source)) return lrcInfo
+      } else return lrcInfo
+    }
+    if (musicInfo.source == 'local') return lrcInfo
   }
   return null
 }
@@ -210,10 +218,19 @@ export const getOnlineOtherSourcePicByLocal = async(musicInfo: LX.Music.MusicInf
   })
 }
 
-export const getPlayQuality = (highQuality: boolean, musicInfo: LX.Music.MusicInfoOnline): LX.Quality => {
+export const TRY_QUALITYS_LIST = ['flac24bit', 'flac', '320k'] as const
+type TryQualityType = typeof TRY_QUALITYS_LIST[number]
+export const getPlayQuality = (highQuality: LX.Quality, musicInfo: LX.Music.MusicInfoOnline): LX.Quality => {
   let type: LX.Quality = '128k'
-  let list = qualityList.value[musicInfo.source]
-  if (highQuality && musicInfo.meta._qualitys['320k'] && list?.includes('320k')) type = '320k'
+  if (TRY_QUALITYS_LIST.includes(highQuality as TryQualityType)) {
+    let list = qualityList.value[musicInfo.source]
+
+    let t = TRY_QUALITYS_LIST
+      .slice(TRY_QUALITYS_LIST.indexOf(highQuality as TryQualityType))
+      .find(q => musicInfo.meta._qualitys[q] && list?.includes(q))
+
+    if (t) type = t
+  }
   return type
 }
 
@@ -238,7 +255,7 @@ export const getOnlineOtherSourceMusicUrl = async({ musicInfos, quality, onToggl
     if (retryedSource.includes(musicInfo.source)) continue
     retryedSource.push(musicInfo.source)
     if (!assertApiSupport(musicInfo.source)) continue
-    itemQuality = quality ?? getPlayQuality(appSetting['player.highQuality'], musicInfo)
+    itemQuality = quality ?? getPlayQuality(appSetting['player.playQuality'], musicInfo)
     if (!musicInfo.meta._qualitys[itemQuality]) continue
 
     console.log('try toggle to: ', musicInfo.source, musicInfo.name, musicInfo.singer, musicInfo.interval)
@@ -285,7 +302,7 @@ export const handleGetOnlineMusicUrl = async({ musicInfo, quality, onToggleSourc
 }> => {
   if (!await window.lx.apiInitPromise[0]) throw new Error('source init failed')
   // console.log(musicInfo.source)
-  const targetQuality = quality ?? getPlayQuality(appSetting['player.highQuality'], musicInfo)
+  const targetQuality = quality ?? getPlayQuality(appSetting['player.playQuality'], musicInfo)
 
   let reqPromise
   try {

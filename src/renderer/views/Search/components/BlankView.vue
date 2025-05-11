@@ -93,7 +93,7 @@ const handleSearch = (text) => {
 .noitemListContainer {
   padding: 3% 15px 15px;
   // margin-top: -20px;
-  min-height: 300px;
+  min-height: 250px;
   max-height: 94.7%;
 }
 .noitemList {
@@ -118,7 +118,7 @@ const handleSearch = (text) => {
   transition: background-color @transition-normal;
   cursor: pointer;
   color: var(--color-button-font);
-  .mixin-ellipsis-1;
+  .mixin-ellipsis-1();
   max-width: 150px;
   font-size: 13px;
   &:hover {

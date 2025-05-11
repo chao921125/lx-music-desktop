@@ -9,6 +9,7 @@ import { throttle } from '@common/utils'
 import { pause, play, playNext, playPrev } from '@renderer/core/player'
 import { playProgress } from '@renderer/store/player/playProgress'
 import { appSetting } from '@renderer/store/setting'
+import { lyric } from '@renderer/store/player/lyric'
 
 export default () => {
   // const setVisibleDesktopLyric = useCommit('setVisibleDesktopLyric')
@@ -45,12 +46,14 @@ export default () => {
       picUrl: musicInfo.pic ?? '',
       lyric: musicInfo.lrc ?? '',
       lyricLineText: '',
+      lyricLineAllText: '',
     })
   }
   const handleSetLyric = () => {
     sendPlayerStatus({
       lyric: musicInfo.lrc ?? '',
       lyricLineText: '',
+      lyricLineAllText: '',
     })
   }
   const handleSetPic = () => {
@@ -58,9 +61,11 @@ export default () => {
       picUrl: musicInfo.pic ?? '',
     })
   }
-  const handleSetLyricLine = (text: string) => {
+  const handleSetLyricLine = (text: string, line: number) => {
+    let curLine = lyric.lines[line]?.extendedLyrics.join('\n') ?? ''
     sendPlayerStatus({
       lyricLineText: text,
+      lyricLineAllText: curLine ? text + '\n' + curLine : text,
     })
   }
   // const handleSetTaskbarThumbnailClip = (clip) => {

@@ -2,6 +2,19 @@ import http from 'node:http'
 import querystring from 'node:querystring'
 import type { Socket } from 'node:net'
 import { getAddress } from '@common/utils/nodejs'
+import { sendTaskbarButtonClick } from '@main/modules/winMain'
+
+const sendResponse = (res: http.ServerResponse, code = 200, msg: string | Record<any, unknown> = 'OK', contentType = 'text/plain; charset=utf-8') => {
+  res.writeHead(code, {
+    'Content-Type': contentType,
+    'Access-Control-Allow-Origin': '*',
+  })
+  if (typeof msg === 'object') {
+    res.end(JSON.stringify(msg))
+  } else {
+    res.end(msg)
+  }
+}
 
 let status: LX.OpenAPI.Status = {
   status: false,
@@ -14,19 +27,37 @@ type SubscribeKeys = keyof LX.Player.Status
 let httpServer: http.Server
 let sockets = new Set<Socket>()
 let responses = new Map<http.ServerResponse<http.IncomingMessage>, SubscribeKeys[]>()
+let playerStatusKeys: SubscribeKeys[]
+
+const defaultFilter = [
+  'status',
+  'name',
+  'singer',
+  'albumName',
+  'lyricLineText',
+  'duration',
+  'progress',
+  'playbackRate',
+] satisfies SubscribeKeys[]
 
 const parseFilter = (filter: any) => {
-  const keys = Object.keys(global.lx.player_status) as SubscribeKeys[]
-  if (typeof filter != 'string') return keys
+  if (typeof filter != 'string') return defaultFilter
   filter = filter.split(',')
-  const subKeys = keys.filter(k => filter.includes(k))
-  return subKeys.length ? subKeys : keys
+  const subKeys = playerStatusKeys.filter(k => filter.includes(k))
+  return subKeys.length ? subKeys : defaultFilter
+}
+const handleSendStatus = (res: http.ServerResponse<http.IncomingMessage>, query?: string) => {
+  const keys = parseFilter(querystring.parse(query ?? '').filter)
+  const resp: Partial<Record<SubscribeKeys, any>> = {}
+  for (const k of keys) resp[k] = global.lx.player_status[k]
+  sendResponse(res, 200, resp, 'application/json; charset=utf-8')
 }
 const handleSubscribePlayerStatus = (req: http.IncomingMessage, res: http.ServerResponse<http.IncomingMessage>, query?: string) => {
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     Connection: 'keep-alive',
     'Cache-Control': 'no-cache',
+    'Access-Control-Allow-Origin': '*',
   })
   req.socket.setTimeout(0)
   req.on('close', () => {
@@ -43,26 +74,15 @@ const handleSubscribePlayerStatus = (req: http.IncomingMessage, res: http.Server
 }
 
 const handleStartServer = async(port: number, ip: string) => new Promise<void>((resolve, reject) => {
+  playerStatusKeys = Object.keys(global.lx.player_status) as SubscribeKeys[]
   httpServer = http.createServer((req, res): void => {
     const [endUrl, query] = `/${req.url?.split('/').at(-1) ?? ''}`.split('?')
-    let code
-    let msg
+    let code = 200
+    let msg = 'OK'
     switch (endUrl) {
       case '/status':
-        code = 200
-        res.setHeader('Content-Type', 'application/json; charset=utf-8')
-        msg = JSON.stringify({
-          status: global.lx.player_status.status,
-          name: global.lx.player_status.name,
-          singer: global.lx.player_status.singer,
-          albumName: global.lx.player_status.albumName,
-          duration: global.lx.player_status.duration,
-          progress: global.lx.player_status.progress,
-          picUrl: global.lx.player_status.picUrl,
-          playbackRate: global.lx.player_status.playbackRate,
-          lyricLineText: global.lx.player_status.lyricLineText,
-        })
-        break
+        handleSendStatus(res, query)
+        return
         // case '/test':
         //   code = 200
         //   res.setHeader('Content-Type', 'text/html; charset=utf-8')
@@ -108,9 +128,25 @@ const handleStartServer = async(port: number, ip: string) => new Promise<void>((
       //   </html>`
       //   break
       case '/lyric':
-        code = 200
-        res.setHeader('Content-Type', 'text/plain; charset=utf-8')
         msg = global.lx.player_status.lyric
+        break
+      case '/play':
+        sendTaskbarButtonClick('play')
+        break
+      case '/pause':
+        sendTaskbarButtonClick('pause')
+        break
+      case '/skip-next':
+        sendTaskbarButtonClick('next')
+        break
+      case '/skip-prev':
+        sendTaskbarButtonClick('prev')
+        break
+      case '/collect':
+        sendTaskbarButtonClick('collect')
+        break
+      case '/uncollect':
+        sendTaskbarButtonClick('unCollect')
         break
       case '/subscribe-player-status':
         try {
@@ -127,9 +163,7 @@ const handleStartServer = async(port: number, ip: string) => new Promise<void>((
         msg = 'Forbidden'
         break
     }
-    if (!code) return
-    res.writeHead(code)
-    res.end(msg)
+    sendResponse(res, code, msg)
   })
   httpServer.on('error', error => {
     console.log(error)

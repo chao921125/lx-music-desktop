@@ -290,6 +290,35 @@ export const setPowerSaveBlocker = (enabled: boolean) => {
     powerSaveBlockerId = powerSaveBlocker.start('prevent-app-suspension')
   } else {
     if (!isEnabled) return
-    if (powerSaveBlocker.stop(powerSaveBlockerId!)) powerSaveBlockerId = null
+    powerSaveBlocker.stop(powerSaveBlockerId!)
+    powerSaveBlockerId = null
   }
+}
+
+
+let envProxy: null | { host: string, port: number } = null
+export const getProxy = () => {
+  if (global.lx.appSetting['network.proxy.enable'] && global.lx.appSetting['network.proxy.host']) {
+    return {
+      host: global.lx.appSetting['network.proxy.host'],
+      port: parseInt(global.lx.appSetting['network.proxy.port'] || '80'),
+    }
+  }
+  if (envProxy) {
+    return {
+      host: envProxy.host,
+      port: envProxy.port,
+    }
+  } else {
+    const envProxyStr = envParams.cmdParams['proxy-server']
+    if (envProxyStr && typeof envProxyStr == 'string') {
+      const [host, port = ''] = envProxyStr.split(':')
+      return envProxy = {
+        host,
+        port: parseInt(port || '80'),
+      }
+    }
+  }
+
+  return null
 }

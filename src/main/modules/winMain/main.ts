@@ -1,8 +1,8 @@
 import { BrowserWindow, dialog, session } from 'electron'
 import path from 'node:path'
 import { createTaskBarButtons, getWindowSizeInfo } from './utils'
-import { isLinux, isWin } from '@common/utils'
-import { openDevTools as handleOpenDevTools } from '@main/utils'
+import { getPlatform, isLinux, isWin } from '@common/utils'
+import { getProxy, openDevTools as handleOpenDevTools } from '@main/utils'
 import { mainSend } from '@common/mainIpc'
 import { sendFocus, sendTaskbarButtonClick } from './rendererEvent'
 import { encodePath } from '@common/utils/electron'
@@ -13,14 +13,13 @@ const winEvent = () => {
   if (!browserWindow) return
 
   browserWindow.on('close', event => {
-    if (global.lx.isSkipTrayQuit || !global.lx.appSetting['tray.enable'] || (!isWin && !global.lx.isTrafficLightClose)) {
+    if (global.lx.isSkipTrayQuit || !global.lx.appSetting['tray.enable']) {
       browserWindow!.setProgressBar(-1)
       // global.lx.mainWindowClosed = true
       global.lx.event_app.main_window_close()
       return
     }
 
-    global.lx.isTrafficLightClose &&= false
     event.preventDefault()
     browserWindow!.hide()
   })
@@ -66,6 +65,12 @@ export const createWindow = () => {
 
   const { shouldUseDarkColors, theme } = global.lx.theme
   const ses = session.fromPartition('persist:win-main')
+  const proxy = getProxy()
+  if (proxy) {
+    void ses.setProxy({
+      proxyRules: `http://${proxy.host}:${proxy.port}`,
+    })
+  }
 
   /**
    * Initial window options
@@ -76,12 +81,13 @@ export const createWindow = () => {
     width: windowSizeInfo.width,
     frame: false,
     transparent: !global.envParams.cmdParams.dt,
+    hasShadow: global.envParams.cmdParams.dt,
     // enableRemoteModule: false,
     // icon: join(global.__static, isWin ? 'icons/256x256.ico' : 'icons/512x512.png'),
     resizable: false,
     maximizable: false,
     fullscreenable: true,
-    roundedCorners: false,
+    roundedCorners: global.envParams.cmdParams.dt,
     show: false,
     webPreferences: {
       session: ses,
@@ -103,7 +109,7 @@ export const createWindow = () => {
   browserWindow = new BrowserWindow(options)
 
   const winURL = process.env.NODE_ENV !== 'production' ? 'http://localhost:9080' : `file://${path.join(encodePath(__dirname), 'index.html')}`
-  void browserWindow.loadURL(winURL + `?dt=${!!global.envParams.cmdParams.dt}&dark=${shouldUseDarkColors}&theme=${encodeURIComponent(JSON.stringify(theme))}`)
+  void browserWindow.loadURL(winURL + `?os=${getPlatform()}&dt=${global.envParams.cmdParams.dt}&dark=${shouldUseDarkColors}&theme=${encodeURIComponent(JSON.stringify(theme))}`)
 
   winEvent()
 
@@ -111,6 +117,7 @@ export const createWindow = () => {
 
   // global.lx.mainWindowClosed = false
   // browserWindow.webContents.openDevTools()
+  global.lx.event_app.main_window_created(browserWindow)
 }
 
 export const isExistWindow = (): boolean => !!browserWindow
@@ -123,6 +130,21 @@ export const closeWindow = () => {
   if (!browserWindow) return
   browserWindow.close()
 }
+
+export const setProxy = () => {
+  if (!browserWindow) return
+  const proxy = getProxy()
+  if (proxy) {
+    void browserWindow.webContents.session.setProxy({
+      proxyRules: `http://${proxy.host}:${proxy.port}`,
+    })
+  } else {
+    void browserWindow.webContents.session.setProxy({
+      proxyRules: '',
+    })
+  }
+}
+
 
 export const sendEvent = <T = any>(name: string, params?: T) => {
   if (!browserWindow) return

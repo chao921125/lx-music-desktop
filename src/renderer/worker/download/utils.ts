@@ -1,8 +1,8 @@
 import { DOWNLOAD_STATUS, QUALITYS } from '@common/constants'
 import { filterFileName } from '@common/utils/common'
-import { joinPath } from '@common/utils/nodejs'
 import { mergeLyrics } from './lrcTool'
 import fs from 'fs'
+import { clipFileNameLength, clipNameLength } from '@common/utils/tools'
 
 /**
  * 保存歌词文件
@@ -66,7 +66,7 @@ export const getMusicType = (musicInfo: LX.Music.MusicInfoOnline, type: LX.Quali
 //   return list.some(s => s.id === musicInfo.id && (s.metadata.type === type || s.metadata.ext === ext))
 // }
 
-export const createDownloadInfo = (musicInfo: LX.Music.MusicInfoOnline, type: LX.Quality, fileName: string, savePath: string, qualityList: LX.QualityList) => {
+export const createDownloadInfo = (musicInfo: LX.Music.MusicInfoOnline, type: LX.Quality, fileName: string, qualityList: LX.QualityList, listId?: string) => {
   type = getMusicType(musicInfo, type, qualityList)
   let ext = getExt(type)
   const key = `${musicInfo.id}_${type}_${ext}`
@@ -87,12 +87,13 @@ export const createDownloadInfo = (musicInfo: LX.Music.MusicInfoOnline, type: LX
       quality: type,
       ext,
       filePath: '',
-      fileName: filterFileName(`${fileName
+      listId,
+      fileName: filterFileName(`${clipFileNameLength(fileName
         .replace('歌名', musicInfo.name)
-        .replace('歌手', musicInfo.singer)}.${ext}`),
+        .replace('歌手', clipNameLength(musicInfo.singer)))}.${ext}`),
     },
   }
-  downloadInfo.metadata.filePath = joinPath(savePath, downloadInfo.metadata.fileName)
+  // downloadInfo.metadata.filePath = joinPath(savePath, downloadInfo.metadata.fileName)
   // commit('addTask', downloadInfo)
 
   // 删除同路径下的同名文件

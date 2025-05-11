@@ -23,7 +23,8 @@
 
 <script setup>
 import { computed } from '@common/utils/vueTools'
-import { appSetting, updateSetting } from '@renderer/store/setting'
+import { setMediaDeviceId } from '@renderer/plugins/player'
+import { appSetting, saveMediaDeviceId, updateSetting } from '@renderer/store/setting'
 // import AddPitchShifterPresetBtn from './AddPitchShifterPresetBtn.vue'
 // import { getUserPitchShifterPresetList, removeUserPitchShifterPreset } from '@renderer/store/soundEffect'
 // import { semitones } from '@renderer/plugins/player'
@@ -37,7 +38,11 @@ import { appSetting, updateSetting } from '@renderer/store/setting'
 
 const playbackRate = computed(() => appSetting['player.soundEffect.pitchShifter.playbackRate'])
 
-const handleSetPreset = (value) => {
+const handleSetPreset = async(value) => {
+  if (appSetting['player.mediaDeviceId'] != 'default') {
+    await setMediaDeviceId('default').catch(_ => _)
+    saveMediaDeviceId('default')
+  }
   updateSetting({ 'player.soundEffect.pitchShifter.playbackRate': value })
 }
 
@@ -48,7 +53,7 @@ const handleSetPreset = (value) => {
 
 const handleUpdatePlaybackRate = (value) => {
   value = parseFloat((Math.round(value) / 100).toFixed(2))
-  handleSetPreset(value)
+  void handleSetPreset(value)
 }
 
 
@@ -78,7 +83,7 @@ const handleUpdatePlaybackRate = (value) => {
   min-height: 0;
   flex: none;
   &:before {
-    .mixin-after;
+    .mixin-after();
     position: absolute;
     top: 0;
     height: 1px;
@@ -129,7 +134,7 @@ const handleUpdatePlaybackRate = (value) => {
   align-items: center;
   // font-size: 13px;
   span {
-    line-height: 1;
+    line-height: 1.2;
   }
 }
 

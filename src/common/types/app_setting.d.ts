@@ -89,14 +89,20 @@ declare global {
       'player.togglePlayMethod': 'listLoop' | 'random' | 'list' | 'singleLoop' | 'none'
 
       /**
-       * 是否优先播放320k音质
+       * 优先播放的音质
        */
-      'player.highQuality': boolean
+      'player.playQuality': LX.Quality
 
       /**
        * 是否显示任务栏进度条
        */
       'player.isShowTaskProgess': boolean
+
+
+      /**
+       * 是否将歌词显示在状态栏
+       */
+      'player.isShowStatusBarLyric': boolean
 
       /**
        * 音量大小
@@ -122,6 +128,11 @@ declare global {
        * 是否自动调整音频的音高以补偿对播放速率设置所做的更改
        */
       'player.preservesPitch': boolean
+
+      /**
+       * 使用设备能处理的最大声道数输出音频
+       */
+      'player.isMaxOutputChannelCount': boolean
 
       /**
        * 音频输出设备id
@@ -288,6 +299,11 @@ declare global {
        */
       'playDetail.style.align': 'center' | 'left' | 'right'
 
+      /**
+       * 播放详情页-是否延迟桌面歌词滚动
+       */
+      'playDetail.isDelayScroll': boolean
+
 
       /**
        * 是否启用桌面歌词
@@ -323,6 +339,11 @@ declare global {
        * 是否在全屏时隐藏歌词
        */
       'desktopLyric.fullscreenHide': boolean
+
+      /**
+       * 是否在暂停时隐藏歌词
+       */
+      'desktopLyric.pauseHide': boolean
 
       /**
        * 桌面歌词窗口宽度
@@ -468,6 +489,11 @@ declare global {
        * 是否启用下载功能
        */
       'download.enable': boolean
+
+      /**
+       * 按列表名分组保存
+       */
+      'download.isSavePathGroupByListName': boolean
 
       /**
        * 下载路径
