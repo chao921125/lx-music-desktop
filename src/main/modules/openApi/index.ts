@@ -52,6 +52,15 @@ const handleSendStatus = (res: http.ServerResponse<http.IncomingMessage>, query?
   for (const k of keys) resp[k] = global.lx.player_status[k]
   sendResponse(res, 200, resp, 'application/json; charset=utf-8')
 }
+const handleSendAllLyric = (res: http.ServerResponse<http.IncomingMessage>) => {
+  const resp: Partial<Record<SubscribeKeys, any>> = {
+    lyric: global.lx.player_status.lyric,
+    tlyric: global.lx.player_status.tlyric,
+    rlyric: global.lx.player_status.rlyric,
+    lxlyric: global.lx.player_status.lxlyric,
+  }
+  sendResponse(res, 200, resp, 'application/json; charset=utf-8')
+}
 const handleSubscribePlayerStatus = (req: http.IncomingMessage, res: http.ServerResponse<http.IncomingMessage>, query?: string) => {
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
@@ -130,6 +139,9 @@ const handleStartServer = async(port: number, ip: string) => new Promise<void>((
       case '/lyric':
         msg = global.lx.player_status.lyric
         break
+      case '/lyric-all':
+        handleSendAllLyric(res)
+        return
       case '/play':
         sendTaskbarButtonClick('play')
         break
@@ -142,12 +154,44 @@ const handleStartServer = async(port: number, ip: string) => new Promise<void>((
       case '/skip-prev':
         sendTaskbarButtonClick('prev')
         break
+      case '/seek': {
+        const offset = parseFloat(querystring.parse(query ?? '').offset as string)
+        if (Number.isNaN(offset) || offset < 0 || offset > global.lx.player_status.duration) {
+          code = 400
+          msg = 'Invalid offset'
+        } else {
+          sendTaskbarButtonClick('seek', parseFloat(offset.toFixed(3)))
+        }
+        break
+      }
       case '/collect':
         sendTaskbarButtonClick('collect')
         break
       case '/uncollect':
         sendTaskbarButtonClick('unCollect')
         break
+      case '/volume': {
+        const volume = parseInt(querystring.parse(query ?? '').volume as string)
+        if (Number.isNaN(volume) || volume < 0 || volume > 100) {
+          code = 400
+          msg = 'Invalid volume'
+        } else {
+          sendTaskbarButtonClick('volume', volume / 100)
+        }
+        break
+      }
+      case '/mute': {
+        const mute = querystring.parse(query ?? '').mute
+        if (mute == 'true') {
+          sendTaskbarButtonClick('mute', true)
+        } else if (mute == 'false') {
+          sendTaskbarButtonClick('mute', false)
+        } else {
+          code = 400
+          msg = 'Invalid mute value'
+        }
+        break
+      }
       case '/subscribe-player-status':
         try {
           handleSubscribePlayerStatus(req, res, query)

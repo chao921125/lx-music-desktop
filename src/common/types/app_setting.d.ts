@@ -69,6 +69,11 @@ declare global {
       'common.playBarProgressStyle': 'mini' | 'full' | 'middle'
 
       /**
+       * 启用透明窗口
+       */
+      'common.transparentWindow': boolean
+
+      /**
        * 尝试自动更新
        */
       'common.tryAutoUpdate': boolean
@@ -153,6 +158,11 @@ declare global {
        * 是否显示歌词罗马音
        */
       'player.isShowLyricRoma': boolean
+
+      /**
+       * 是否调换翻译歌词与罗马音歌词位置
+       */
+      'player.isSwapLyricTranslationAndRoma': boolean
 
       /**
        * 是否将歌词从简体转换为繁体
@@ -521,6 +531,11 @@ declare global {
       'download.isDownloadLrc': boolean
 
       /**
+       * 是否在下载 lx 歌词
+       */
+      'download.isDownloadLxLrc': boolean
+
+      /**
        * 是否下载翻译歌词文件
        */
       'download.isDownloadTLrc': boolean
@@ -539,6 +554,11 @@ declare global {
        * 是否在音频文件中嵌入歌曲封面
        */
       'download.isEmbedPic': boolean
+
+      /**
+       * 是否在音频文件中嵌入 lx 歌词
+       */
+      'download.isEmbedLyricLx': boolean
 
       /**
        * 是否在音频文件中嵌入歌词
