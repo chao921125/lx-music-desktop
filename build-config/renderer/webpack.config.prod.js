@@ -19,7 +19,13 @@ const gitInfo = {
 }
 
 try {
-  if (!execSync('git status --porcelain').toString().trim()) {
+  let isClean = !execSync('git status --porcelain').toString().trim()
+  if (process.env.BUILD_WIN7) {
+    console.warn('BUILD_WIN7 is set, skipping git status check.')
+    console.log('Workspace status:', execSync('git status --porcelain').toString().trim())
+    isClean = true
+  }
+  if (isClean) {
     gitInfo.commit_id = execSync('git log -1 --pretty=format:"%H"').toString().trim()
     gitInfo.commit_date = execSync('git log -1 --pretty=format:"%ad" --date=iso-strict').toString().trim()
   } else if (process.env.IS_CI) {
@@ -33,15 +39,6 @@ module.exports = merge(baseConfig, {
   externals: [
     // ...Object.keys(dependencies || {}).filter(d => !whiteListedModules.includes(d)),
   ],
-  module: {
-    rules: [
-      {
-        test: /\.js$/,
-        loader: 'babel-loader',
-        exclude: /node_modules/,
-      },
-    ],
-  },
   plugins: [
     new CopyWebpackPlugin({
       patterns: [
